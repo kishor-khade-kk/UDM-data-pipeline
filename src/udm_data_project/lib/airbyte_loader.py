@@ -83,3 +83,18 @@ def push_airbyte_csv_to_snowflake(
             MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
             PURGE = TRUE
         """)
+
+        # Flatten _airbyte_data JSON into individual columns
+        cur.execute(f"SELECT _airbyte_data FROM {full_table} LIMIT 1")
+        row = cur.fetchone()
+        if row and row[0]:
+            import json
+            keys = list(json.loads(row[0]).keys())
+            col_defs = ", ".join(f'PARSE_JSON(_airbyte_data):{k}::STRING AS "{k}"' for k in keys)
+            if context:
+                context.log.info(f"  {table_name}: flattening {len(keys)} JSON columns ...")
+            cur.execute(f"""
+                CREATE OR REPLACE TABLE {full_table} AS
+                SELECT {col_defs}
+                FROM {full_table}
+            """)
