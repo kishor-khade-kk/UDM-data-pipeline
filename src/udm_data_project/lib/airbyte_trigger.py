@@ -74,6 +74,7 @@ def trigger_airbyte_sync(
 
     while True:
         time.sleep(poll_interval_seconds)
+        headers = {"Authorization": f"Bearer {_get_airbyte_token(airbyte_url, client_id, client_secret)}"}
         status_response = requests.get(
             f"{airbyte_url.rstrip('/')}/api/public/v1/jobs/{job_id}",
             headers=headers,
