@@ -1,6 +1,6 @@
 # udm_data_project
 
-A Dagster pipeline that loads data from local ZIP archives (NAV and SafeGraph) into Snowflake using native PUT + COPY INTO — no pandas or in-memory data processing, making it suitable for large files on memory-constrained machines.
+A Dagster pipeline that loads data from multiple sources (ZIP archives and Airbyte connections) into Snowflake using native PUT + COPY INTO — no pandas or in-memory data processing, making it suitable for large files on memory-constrained machines.
 
 ## Project Structure
 
@@ -12,14 +12,18 @@ gatekeeper_systems_data/
     ├── .env                    # Snowflake credentials (see setup below)
     ├── pyproject.toml          # project dependencies and config
     └── src/udm_data_project/
-        ├── config.py           # central config: table lists, schema names, env vars
+        ├── config.py           # central config: table lists, schema names, Airbyte connections
         ├── definitions.py      # Dagster definitions entry point + Snowflake resource
         ├── defs/
         │   ├── nav_data_loader.py        # Dagster asset: loads NAV tables → Snowflake BRONZE
-        │   └── safegraph_data_loader.py  # Dagster asset: loads SafeGraph tables → Snowflake BRONZE
+        │   ├── safegraph_data_loader.py  # Dagster asset: loads SafeGraph tables → Snowflake BRONZE
+        │   └── mappings_data_loader.py   # Dagster asset: triggers Airbyte sync for mappings
         └── lib/
-            ├── zip_loader.py       # Streams parquet files out of a ZIP to disk
-            └── snowflake_loader.py # Uploads parquet to Snowflake via PUT + COPY INTO
+            ├── zip_loader.py             # Streams parquet files out of a ZIP to disk
+            ├── snowflake_loader.py       # Uploads parquet to Snowflake via PUT + COPY INTO
+            ├── airbyte_loader.py         # Uploads Airbyte local CSV files to Snowflake
+            ├── airbyte_snowflake_loader.py  # Verifies Airbyte-loaded tables in Snowflake
+            └── airbyte_trigger.py        # Triggers and polls Airbyte connection syncs
 ```
 
 ## Prerequisites
@@ -27,6 +31,7 @@ gatekeeper_systems_data/
 - Python 3.10–3.14
 - [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
 - A Snowflake account with a warehouse and database already created
+- A running Airbyte instance (for Airbyte-based assets)
 
 ## Setup
 
@@ -82,8 +87,10 @@ All project-level settings live in `src/udm_data_project/config.py`:
 | `SCHEMA_MART` | Aggregated/business layer — `MART` |
 | `SCHEMA_UAT` | User acceptance testing — `UAT` |
 | `SCHEMA_PROD` | Production — `PROD` |
+| `AIRBYTE_URL` | Base URL of the Airbyte instance (e.g. `http://localhost:8000`) |
+| `AIRBYTE_CONNECTIONS` | Dict mapping connection names to Airbyte connection IDs |
 
-To add a new data source or table, update `config.py` and add a new asset in `defs/`.
+To add a new Airbyte connection, add an entry to `AIRBYTE_CONNECTIONS` in `config.py` and create a new asset in `defs/`.
 
 ## Running
 
@@ -97,9 +104,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser, then materi
 
 ## How data loading works
 
+### ZIP-based assets (NAV, SafeGraph)
+
 1. Each parquet file is streamed out of the ZIP to a temp file on disk (no in-memory loading)
 2. The temp file is uploaded to Snowflake's internal stage via `PUT`
 3. Snowflake infers the table schema from the parquet metadata (`INFER_SCHEMA`)
 4. Data is loaded server-side via `COPY INTO` and the staged file is purged
+
+### Airbyte-based assets (Mappings)
+
+1. The asset triggers an Airbyte connection sync via the Airbyte REST API
+2. It polls the job status until the sync completes or fails
+3. Airbyte loads the data directly into Snowflake BRONZE
 
 This approach uses minimal RAM regardless of file size.
