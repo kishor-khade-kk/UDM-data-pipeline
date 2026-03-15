@@ -1,8 +1,30 @@
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
 from dagster import AssetExecutionContext
 from dagster_snowflake import SnowflakeResource
+
+
+def copy_csv_from_docker(
+    container_name: str,
+    container_path: str,
+    context: Optional[AssetExecutionContext] = None,
+) -> Path:
+    """Copy a CSV file from a Docker container to a local temp file and return its path."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()
+
+    if context:
+        context.log.info(f"Copying {container_path} from container {container_name} ...")
+
+    subprocess.run(
+        ["docker", "cp", f"{container_name}:{container_path}", str(tmp_path)],
+        check=True,
+    )
+    return tmp_path
 
 
 def push_airbyte_csv_to_snowflake(
