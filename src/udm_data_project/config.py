@@ -52,6 +52,8 @@ SCHEMA_PROD = "PROD"
 # Airbyte
 # ---------------------------------------------------------------------------
 AIRBYTE_URL = "http://localhost:8000"
+AIRBYTE_CLIENT_ID = os.environ["AIRBYTE_CLIENT_ID"]
+AIRBYTE_CLIENT_SECRET = os.environ["AIRBYTE_CLIENT_SECRET"]
 AIRBYTE_CONTAINER_NAME = "airbyte-abctl-control-plane"
 AIRBYTE_CONTAINER_CSV_DIR = "/tmp/airbyte_local"
 

@@ -2,6 +2,8 @@ from dagster import AssetExecutionContext, asset
 from dagster_snowflake import SnowflakeResource
 
 from udm_data_project.config import (
+    AIRBYTE_CLIENT_ID,
+    AIRBYTE_CLIENT_SECRET,
     AIRBYTE_CONNECTIONS,
     AIRBYTE_CONTAINER_CSV_DIR,
     AIRBYTE_CONTAINER_NAME,
@@ -18,6 +20,8 @@ def mappings_data_loader(context: AssetExecutionContext, snowflake: SnowflakeRes
     trigger_airbyte_sync(
         connection_id=AIRBYTE_CONNECTIONS["mappings"],
         airbyte_url=AIRBYTE_URL,
+        client_id=AIRBYTE_CLIENT_ID,
+        client_secret=AIRBYTE_CLIENT_SECRET,
         context=context,
     )
 

@@ -5,9 +5,25 @@ import requests
 from dagster import AssetExecutionContext
 
 
+def _get_airbyte_token(airbyte_url: str, client_id: str, client_secret: str) -> str:
+    """Obtain a Bearer token from Airbyte using client credentials."""
+    response = requests.post(
+        f"{airbyte_url.rstrip('/')}/api/v1/applications/token",
+        json={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "client_credentials",
+        },
+    )
+    response.raise_for_status()
+    return response.json()["access_token"]
+
+
 def trigger_airbyte_sync(
     connection_id: str,
     airbyte_url: str,
+    client_id: str,
+    client_secret: str,
     wait_for_completion: bool = True,
     poll_interval_seconds: int = 10,
     context: Optional[AssetExecutionContext] = None,
@@ -17,20 +33,26 @@ def trigger_airbyte_sync(
     Args:
         connection_id: The Airbyte connection ID to sync.
         airbyte_url: Base URL of the Airbyte instance (e.g. 'http://localhost:8000').
+        client_id: Airbyte OAuth2 client ID.
+        client_secret: Airbyte OAuth2 client secret.
         wait_for_completion: If True, polls until the sync job finishes.
         poll_interval_seconds: Seconds between status polls.
         context: Optional Dagster context for logging.
     """
-    trigger_url = f"{airbyte_url.rstrip('/')}/api/v1/connections/sync"
+    token = _get_airbyte_token(airbyte_url, client_id, client_secret)
+    headers = {"Authorization": f"Bearer {token}"}
 
     if context:
         context.log.info(f"Triggering Airbyte sync for connection: {connection_id}")
 
-    response = requests.post(trigger_url, json={"connectionId": connection_id})
+    response = requests.post(
+        f"{airbyte_url.rstrip('/')}/v1/jobs",
+        json={"connectionId": connection_id, "jobType": "sync"},
+        headers=headers,
+    )
     response.raise_for_status()
 
-    job = response.json().get("job", {})
-    job_id = job.get("id")
+    job_id = response.json().get("jobId")
 
     if context:
         context.log.info(f"Airbyte sync job started: job_id={job_id}")
@@ -38,13 +60,15 @@ def trigger_airbyte_sync(
     if not wait_for_completion or not job_id:
         return
 
-    status_url = f"{airbyte_url.rstrip('/')}/api/v1/jobs/get"
     while True:
         time.sleep(poll_interval_seconds)
-        status_response = requests.post(status_url, json={"id": job_id})
+        status_response = requests.get(
+            f"{airbyte_url.rstrip('/')}/v1/jobs/{job_id}",
+            headers=headers,
+        )
         status_response.raise_for_status()
 
-        status = status_response.json().get("job", {}).get("status")
+        status = status_response.json().get("status")
 
         if context:
             context.log.info(f"  job {job_id} status: {status}")
