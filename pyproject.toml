@@ -6,6 +6,7 @@ dependencies = [
     "dagster==1.12.18",
     "dagster-snowflake>=0.28.18",
     "python-dotenv>=1.2.2",
+    "requests>=2.32.0",
 ]
 
 [dependency-groups]
