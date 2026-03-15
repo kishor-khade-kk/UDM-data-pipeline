@@ -50,9 +50,21 @@ def trigger_airbyte_sync(
         json={"connectionId": connection_id, "jobType": "sync"},
         headers=headers,
     )
-    response.raise_for_status()
 
-    job_id = response.json().get("jobId")
+    if response.status_code == 409:
+        # A sync is already running — find its job ID and wait for it
+        if context:
+            context.log.info("Sync already running, waiting for existing job ...")
+        running = requests.get(
+            f"{airbyte_url.rstrip('/')}/api/public/v1/jobs",
+            params={"connectionId": connection_id, "status": "running", "limit": 1},
+            headers=headers,
+        )
+        running.raise_for_status()
+        job_id = running.json()["data"][0]["jobId"]
+    else:
+        response.raise_for_status()
+        job_id = response.json().get("jobId")
 
     if context:
         context.log.info(f"Airbyte sync job started: job_id={job_id}")
