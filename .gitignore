@@ -27,6 +27,7 @@ htmlcov/
 # Dagster
 $DAGSTER_HOME/
 .dagster/
+.dg/
 dagster_home/
 storage/
 logs/
