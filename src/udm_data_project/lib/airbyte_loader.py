@@ -85,12 +85,12 @@ def push_airbyte_csv_to_snowflake(
         """)
 
         # Flatten _airbyte_data JSON into individual columns
-        cur.execute(f"SELECT _airbyte_data FROM {full_table} LIMIT 1")
+        cur.execute(f'SELECT "_AIRBYTE_DATA" FROM {full_table} LIMIT 1')
         row = cur.fetchone()
         if row and row[0]:
             import json
             keys = list(json.loads(row[0]).keys())
-            col_defs = ", ".join(f'PARSE_JSON(_airbyte_data):{k}::STRING AS "{k}"' for k in keys)
+            col_defs = ", ".join(f'PARSE_JSON("_AIRBYTE_DATA"):{k}::STRING AS "{k}"' for k in keys)
             if context:
                 context.log.info(f"  {table_name}: flattening {len(keys)} JSON columns ...")
             cur.execute(f"""
