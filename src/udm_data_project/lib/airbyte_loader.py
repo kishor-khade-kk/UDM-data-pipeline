@@ -20,10 +20,12 @@ def copy_csv_from_docker(
     if context:
         context.log.info(f"Copying {container_path} from container {container_name} ...")
 
-    subprocess.run(
-        ["docker", "cp", f"{container_name}:{container_path}", str(tmp_path)],
+    result = subprocess.run(
+        ["docker", "exec", container_name, "cat", container_path],
         check=True,
+        capture_output=True,
     )
+    tmp_path.write_bytes(result.stdout)
     return tmp_path
 
 
