@@ -2286,6 +2286,7 @@ dependencies = [
     { name = "dagster" },
     { name = "dagster-snowflake" },
     { name = "python-dotenv" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -2299,6 +2300,7 @@ requires-dist = [
     { name = "dagster", specifier = "==1.12.18" },
     { name = "dagster-snowflake", specifier = ">=0.28.18" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "requests", specifier = ">=2.32.0" },
 ]
 
 [package.metadata.requires-dev]
