@@ -46,7 +46,7 @@ def trigger_airbyte_sync(
         context.log.info(f"Triggering Airbyte sync for connection: {connection_id}")
 
     response = requests.post(
-        f"{airbyte_url.rstrip('/')}/v1/jobs",
+        f"{airbyte_url.rstrip('/')}/api/public/v1/jobs",
         json={"connectionId": connection_id, "jobType": "sync"},
         headers=headers,
     )
@@ -63,7 +63,7 @@ def trigger_airbyte_sync(
     while True:
         time.sleep(poll_interval_seconds)
         status_response = requests.get(
-            f"{airbyte_url.rstrip('/')}/v1/jobs/{job_id}",
+            f"{airbyte_url.rstrip('/')}/api/public/v1/jobs/{job_id}",
             headers=headers,
         )
         status_response.raise_for_status()
